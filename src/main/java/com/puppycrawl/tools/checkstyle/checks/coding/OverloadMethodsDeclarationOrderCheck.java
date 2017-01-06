@@ -55,6 +55,12 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
      */
     public static final String MSG_KEY = "overload.methods.declaration";
 
+    /**
+     * Indicates that static method overloads should be evaluated separately
+     * from instance methods.
+     */
+    private boolean separateStatic;
+
     @Override
     public int[] getDefaultTokens() {
         return getAcceptableTokens();
@@ -98,8 +104,7 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
         while (currentToken != null) {
             if (currentToken.getType() == TokenTypes.METHOD_DEF) {
                 currentIndex++;
-                final String methodName =
-                        currentToken.findFirstToken(TokenTypes.IDENT).getText();
+                final String methodName = extractMethodName(currentToken);
                 if (methodIndexMap.containsKey(methodName)) {
                     final int previousIndex = methodIndexMap.get(methodName);
                     if (currentIndex - previousIndex > allowedDistance) {
@@ -114,5 +119,43 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
             }
             currentToken = currentToken.getNextSibling();
         }
+    }
+
+    /**
+     * Get the currentToken text and if needed prefixes
+     * it according to if the method is static or instance.
+     * @param currentToken assumed to be a method
+     * @return method name with appropriate prefix
+     */
+    private String extractMethodName(DetailAST currentToken) {
+        final DetailAST method = currentToken.findFirstToken(TokenTypes.IDENT);
+        final String methodName = method.getText();
+        if (!isSeparateStatic()) {
+            return methodName;
+        }
+
+        String prefix = "%instance%";
+        final boolean isStatic = currentToken.findFirstToken(TokenTypes.LITERAL_STATIC) != null;
+        if (isStatic) {
+            prefix = "%static%";
+        }
+
+        return prefix + methodName;
+    }
+
+    /**
+     * @return if static methods should be grouped separately from instance methods.
+     */
+    public boolean isSeparateStatic() {
+        return separateStatic;
+    }
+
+    /**
+     * Set static methods to be grouped separately from instance methods.
+     * @param separateStatic true means static method overloads are
+     *                       evaluated separately from instance methods.
+     */
+    public void setSeparateStatic(boolean separateStatic) {
+        this.separateStatic = separateStatic;
     }
 }
