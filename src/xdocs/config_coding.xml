@@ -5824,10 +5824,42 @@ try (Reader r = new PipedReader(); s2; Reader s3 = new PipedReader() // violatio
         </p>
       </subsection>
 
+      <subsection name="Properties" id="OverloadMethodsDeclarationOrder_Properties">
+        <div class="wrapper">
+          <table>
+            <tr>
+              <th>name</th>
+              <th>description</th>
+              <th>type</th>
+              <th>default value</th>
+              <th>since</th>
+            </tr>
+            <tr>
+              <td>modifierGroups</td>
+              <td>custom overload groups, allows for the definitions of multiple overloading method groups. can repeat</td>
+              <td><a href="property_types.html#regexp">Regular Expression</a></td>
+              <td><code>.*</code></td>
+              <th>10.4</th>
+            </tr>
+          </table>
+        </div>
+      </subsection>
+
       <subsection name="Examples" id="OverloadMethodsDeclarationOrder_Examples">
-        <p>To configure the check:</p>
+        <p>
+          To configure the check:
+        </p>
         <source>
 &lt;module name="OverloadMethodsDeclarationOrder"/&gt;
+        </source>
+        <p>
+          Example of incorrect grouping overload methods:
+        </p>
+        <source>
+public void foo(int i) {}
+public void foo(String s) {}
+public void notFoo() {} // Have to be after foo(int i, String s)
+public void foo(int i, String s) {}
         </source>
         <p>Example of correct grouping of overloaded methods:</p>
         <source>
