@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-// ModifiersThatCreateGroup = "static"
+// modifierGroups = "static"
 class Test_Static1 {
     void foo() {}
     void foo(String baz) {}
@@ -13,16 +13,16 @@ class Test_Static1 {
     static void foo(int a) {} // OK, as "static foo" is separate group
 }
 
-// ModifiersThatCreateGroup = "static"
+// modifierGroups = "static"
 class Test_Static2 {
     static private void foo(long b) {  }
     void foo() {  } // OK
     void foo(String baz) {  } //OK
     void bar() {  }
-    static void foo(int a) {  } // WARN - "static foo" methods are not groupped
+    static void foo(int a) {  } // WARN - "static foo" methods are not grouped
 }
 
-// ModifiersThatCreateGroup = "static"
+// modifierGroups = "static"
 class Test_Static3 {
     public void foo(long b) {  } //OK
     public void bar(String baz) {  } //OK
@@ -31,7 +31,7 @@ class Test_Static3 {
     static public void foo(int a) {  } // OK, "static foo" is separate group.
 }
 
-// ModifiersThatCreateGroup = "static"
+// modifierGroups = "static"
 class Test_Static4 {
     public void foo() {  } //OK
     private void bar(String baz) {  } //OK
@@ -40,7 +40,7 @@ class Test_Static4 {
     static protected final void foo(int a) {  } // OK, static foo is it's own group.
 }
 
-//ModifiersThatCreateGroup = "protected, private, package"
+//modifierGroups = "protected, private, package"
 class Test_Protected_Private_package1 {
     private void foo() {  } //OK, 2nd group
     void bar() {  }
@@ -50,7 +50,7 @@ class Test_Protected_Private_package1 {
     private final void foo(long i) {  } // VIOLATION, matches 2nd group, should be close to first method
 }
 
-//ModifiersThatCreateGroup = "protected, private, package"
+//modifierGroups = "protected, private, package"
 abstract class Test_Protected_Private_package2 {
     protected void foo(double d) {  } //OK, matches 1st group
     void bar() {  }
@@ -59,7 +59,7 @@ abstract class Test_Protected_Private_package2 {
     public final void foo(long b) {  } // OK, "public final " does not match special groups so it is default group
 }
 
-//ModifiersThatCreateGroup = "public, public final, static"
+//modifierGroups = "public, public final, static"
 abstract class Test_Public_PublicFinal_Static {
     private void foo(char c) {  } // default group
     void bar() {  } // default group
@@ -72,7 +72,7 @@ abstract class Test_Public_PublicFinal_Static {
     abstract void foo(Error error); //VIOLATION, matches to default, should be close to first method
 }
 
-//ModifiersThatCreateGroup = RegExp[] = "^public .*, (protected|package), private, ^static$"
+//modifierGroups = RegExp[] = "^public .*, (protected|package), private, ^static$"
 abstract class Test_Public_ProtectedOrPackage_Private_onlyStatic {
     private void foo(char c) {  } // 3rd group
     void bar() {  } // second group

@@ -19,17 +19,6 @@
 
 package com.puppycrawl.tools.checkstyle.checks.coding;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.puppycrawl.tools.checkstyle.StatelessCheck;
 import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
@@ -37,26 +26,45 @@ import com.puppycrawl.tools.checkstyle.api.TokenTypes;
 import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
 import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
 
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * <p>
  * Checks that overloaded methods are grouped together. Overloaded methods have the same
  * name but different signatures where the signature can differ by the number of
  * input parameters or type of input parameters or both.
  * </p>
+ * <ul>
+ * <li>
+ * Property {@code modifierGroups} - custom overload groups,
+ * allows for the definitions of multiple overloading method groups.
+ * Type is {@code java.util.regex.Pattern[]}.
+ * Default value is {@code ""}.
+ * </li>
+ * </ul>
  * <p>
  * To configure the check:
  * </p>
  * <pre>
- * &lt;module name=&quot;OverloadMethodsDeclarationOrder&quot;/&gt;
+ * &lt;module name="OverloadMethodsDeclarationOrder"/&gt;
+ * </pre>
+ * <p>
+ * Example of incorrect grouping of overloaded methods:
+ * </p>
+ * <pre>
+ * public void foo(int i) {} // OK
+ * public void foo(String s) {} // OK
+ * public void notFoo() {} // Violation. Has to be after foo(int i, String s)
+ * public void foo(String s, int i) {}
  * </pre>
  * <p>
  * Example of correct grouping of overloaded methods:
- * An example of how to configure the check is:
- * <code><pre>
- * &lt;module name="OverloadMethodsDeclarationOrder"&gt;
- *     &lt;property name="modifierGroups" value="static, .*"/&gt;
- * &lt;/module&gt;
- * </pre></code>
  * </p>
  * <pre>
  * public void foo(int i) {}
@@ -66,14 +74,40 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
  * public void notFoo() {}
  * </pre>
  * <p>
- * Example of incorrect grouping of overloaded methods:
+ * To configure the check to group static and private methods separately within their own
+ * individual groups
+ * </p>
+ * <pre>
+ * &lt;module name="OverloadMethodsDeclarationOrder"&gt;
+ *   &lt;property name="modifierGroups" value="static, private"&gt;&lt;/property&gt;
+ * &lt;/module&gt;
+ * </pre>
+ * <p>
+ * Example of code with violation
  * </p>
  * <pre>
  * public void foo(int i) {} // OK
  * public void foo(String s) {} // OK
- * public void notFoo() {} // violation. Have to be after foo(String s, int i)
- * public void foo(int i, String s) {}
- * public void foo(String s, int i) {}
+ * public void notFoo() {} // OK
+ * private void foo(boolean b) {} // OK
+ * protected void foo(String s, int i) {} // Violation. Has to be after foo(String s)
+ * private void foo(byte b) {} // Violation. Has to be after foo(boolean b)
+ * private static void foo(String s) {} // OK
+ * private static void notFoo(String s) {} // Violation. Has to be after static foo(int i)
+ * private static void foo(int i) {}
+ * </pre>
+ * <p>
+ * Example of compliant code
+ * </p>
+ * <pre>
+ * public void foo(int i) {}
+ * public void foo(String s) {}
+ * public void notFoo() {}
+ * private void foo(boolean b) {}
+ * private void foo(String s, int i) {}
+ * public void notFoo2() {}
+ * private static void foo(String s) {}
+ * private static void foo(String s, int i) {}
  * </pre>
  * <p>
  * Parent is {@code com.puppycrawl.tools.checkstyle.TreeWalker}
@@ -88,9 +122,6 @@ import com.puppycrawl.tools.checkstyle.utils.TokenUtil;
  * </ul>
  *
  * @since 5.8
- * @author maxvetrenko
- * @author ilankeshet
- * @author austinarbor
  */
 @StatelessCheck
 public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
@@ -102,26 +133,22 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
     public static final String MSG_KEY = "overload.methods.declaration";
 
     /**
-     * The default catch all overload group.
-     * Immutable singleton.
-     */
-    public static final OverloadGroup DEFAULT_OVERLOAD_GROUP = pattern -> true;
-
-    /**
      * A match all pattern for the DEFAULT_OVERLOAD_GROUP.
      */
-    private static final String DEFAULT_OVERLOAD_GROUP_PATTERN = ".*";
+    private static final Pattern DEFAULT_MODIFIER_GROUP_PATTERN = Pattern.compile(".*");
+
+    /** Empty array of pattern type needed to initialize check. */
+    private static final Pattern[] EMPTY_PATTERN_ARRAY = new Pattern[0];
 
     /**
-     * An ordered by insertion set of <code>OverloadGroup</code>.
+     * Custom overload groups, allows for the definitions of multiple overloading method groups.
      */
-    private final Set<OverloadGroup> overloadGroups;
+    private Pattern[] modifierGroups = EMPTY_PATTERN_ARRAY;
 
     /**
      * The default constructor.
      */
     public OverloadMethodsDeclarationOrderCheck() {
-        overloadGroups = new LinkedHashSet<>();
     }
 
     @Override
@@ -159,41 +186,28 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
     }
 
     /**
-     * @return an ordered by insertion set of <code>OverloadGroup</code>.
-     */
-    public String getModifierGroups() {
-        return Objects.toString(overloadGroups, null);
-    }
-
-    /**
-     * Set static methods to be grouped separately from instance methods.
-     * @param modifierGroupRegex true means static method overloads are
-     *                       evaluated separately from instance methods.
+     * Setter to custom overload groups, allows for the definitions of multiple overloading method groups.
+     * @param modifierGroupRegex  the array of regex patterns
      */
     public void setModifierGroups(String modifierGroupRegex) {
-        Arrays.stream(modifierGroupRegex.split(",")).forEach(modifierGroup -> {
-            final String trimmed = modifierGroup.trim();
-            if (CommonUtil.isBlank(trimmed) || DEFAULT_OVERLOAD_GROUP_PATTERN.equals(trimmed)) {
-                overloadGroups.add(DEFAULT_OVERLOAD_GROUP);
+        final String[] split = modifierGroupRegex.split(",");
+        modifierGroups = new Pattern[split.length];
+        for(int i=0; i < split.length; i++) {
+            final String trimmed = split[i].trim();
+            if (CommonUtil.isBlank(trimmed)) {
+                modifierGroups[i] = DEFAULT_MODIFIER_GROUP_PATTERN;
+            } else {
+                final Pattern pattern = Pattern.compile(trimmed);
+                modifierGroups[i] = pattern;
             }
-            else {
-                overloadGroups.add(new RegexOverloadGroup(trimmed));
-            }
-        });
-    }
-
-    /**
-     * @return an ordered by insertion set of <code>OverloadGroup</code>.
-     */
-    private Set<OverloadGroup> getOverloadGroups() {
-        return overloadGroups;
+        }
     }
 
     /**
      * @return true if at least one custom group is defined.
      */
     private boolean isGroupsDefined() {
-        return !overloadGroups.isEmpty();
+        return modifierGroups.length > 0;
     }
 
     /**
@@ -205,7 +219,7 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
      */
     private void checkOverloadMethodsGrouping(DetailAST objectBlock) {
         final int allowedDistance = 1;
-        final LastInStore<OverloadDescriptor> knownMethods = new LastInStore<>();
+        final Map<OverloadDescriptor, OverloadDescriptor> knownMethods = new HashMap<>();
         DetailAST currentToken = objectBlock.getFirstChild();
 
         int currentIndex = 0;
@@ -214,7 +228,7 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
                 currentIndex++;
                 final OverloadDescriptor methodKey =
                     extractMethodDescription(currentToken, currentIndex);
-                final OverloadDescriptor previous = knownMethods.set(methodKey);
+                final OverloadDescriptor previous = knownMethods.put(methodKey, methodKey);
                 if (previous != null) {
                     final int previousIndex = previous.getIndex();
                     if (currentIndex - previousIndex > allowedDistance) {
@@ -241,21 +255,22 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
         final int lineNo = currentToken.getLineNo();
         final int colNo = currentToken.getColumnNo();
 
+        final String methodModifiers = extractModifiersString(currentToken);
+
         OverloadDescriptor overloadDescriptor = null;
-        if (!isGroupsDefined()) {
-            // fast path
-            overloadDescriptor =
-                new OverloadDescriptor(DEFAULT_OVERLOAD_GROUP, methodName, lineNo, colNo, index);
+
+        // fast path
+        if(!isGroupsDefined()) {
+            overloadDescriptor = new OverloadDescriptor(DEFAULT_MODIFIER_GROUP_PATTERN,
+                                                        methodName, lineNo, colNo, index);
         }
-
-        if (overloadDescriptor == null) {
-            final String methodModifiers = extractModifiersString(currentToken);
-
-            for (OverloadGroup overloadGroup : getOverloadGroups()) {
-                if (overloadGroup.matches(methodModifiers)) {
-                    // method belongs to the first overload group which matches it's modifiers
+        else {
+            for (Pattern pattern : modifierGroups) {
+                final Matcher matcher = pattern.matcher(methodModifiers);
+                if (matcher.find()) {
+                    // method belongs to the first overload group which matches its modifiers
                     overloadDescriptor =
-                        new OverloadDescriptor(overloadGroup, methodName, lineNo, colNo, index);
+                            new OverloadDescriptor(pattern, methodName, lineNo, colNo, index);
                     break;
                 }
             }
@@ -264,7 +279,7 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
         if (overloadDescriptor == null) {
             // no custom group found, overloaded method added to the default, match all, group
             overloadDescriptor =
-                new OverloadDescriptor(DEFAULT_OVERLOAD_GROUP, methodName, lineNo, colNo, index);
+                new OverloadDescriptor(DEFAULT_MODIFIER_GROUP_PATTERN, methodName, lineNo, colNo, index);
         }
 
         return overloadDescriptor;
@@ -316,85 +331,18 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
                 || "private".equals(modifier);
     }
 
-    /**
-     * Serves as an identifier and predicate for testing group membership..
-     */
-    public interface OverloadGroup {
-        /**
-         * @param modifiers raw modifier text of candidate overloaded method to be tested.
-         * @return true if belong to {@code OverloadGroup}
-         */
-        boolean matches(String modifiers);
-    }
-
-    /**
-     * A Regex customizable Overload group.
-     */
-    public static final class RegexOverloadGroup implements OverloadGroup {
-        /**
-         * Regular expression by which group is defined.
-         */
-        private final Pattern regex;
-
-        /**
-         * @param regexPattern None <code>null</code> {@link String} to be converted
-         *                     to {@link Pattern} with which this
-         *                     <code>RegexOverloadGroup}</code> is defined.
-         */
-        RegexOverloadGroup(String regexPattern) {
-            Objects.requireNonNull(regexPattern, "regexPattern may not be null");
-            regex = Pattern.compile(regexPattern);
-        }
-
-        /**
-         * @return pattern string by which the {@code OverloadGroup} is matched.
-         */
-        public String pattern() {
-            return regex.pattern();
-        }
-
-        @Override
-        public boolean matches(String modifiers) {
-            final Matcher matcher = regex.matcher(modifiers);
-            return matcher.find();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            final RegexOverloadGroup other = (RegexOverloadGroup) o;
-            return Objects.equals(pattern(), other.pattern());
-        }
-
-        @Override
-        public int hashCode() {
-            final String pattern = pattern();
-            return pattern.hashCode();
-        }
-
-        @Override
-        public String toString() {
-            return pattern();
-        }
-    }
 
     /**
      * Holds information about an overload method, the group it belongs to
      * and where it was found.
-     * <br> Note: <code>index</code> and <code>lineNo</code> do not participate
+     * <br> Note: <code>index</code> and <code>lineNo</code> do not participate </br>
      * in {@link #equals(Object)} or {@link #hashCode()}.
      */
-    public static final class OverloadDescriptor {
+    private static final class OverloadDescriptor {
         /**
          * Overload group definition.
          */
-        private final OverloadGroup overloadGroup;
+        private final Pattern pattern;
 
         /**
          * Method name.
@@ -410,16 +358,16 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
         private final int colNo;
 
         /**
-         * @param overloadGroup to which method belongs. may not be null.
+         * @param pattern the pattern which matched the modifiers.
          * @param methodName name of method, mey not be null.
          * @param lineNo line in which method is defined in file.
          * @param colNo column in which method is defined in file.
          * @param index order of appearance in overload group.
          */
-        OverloadDescriptor(OverloadGroup overloadGroup,
+        OverloadDescriptor(Pattern pattern,
             String methodName, int lineNo, int colNo, int index) {
-            this.overloadGroup =
-                Objects.requireNonNull(overloadGroup, "overloadGroup may not be null");
+            this.pattern =
+                Objects.requireNonNull(pattern, "pattern may not be null");
             this.methodName = Objects.requireNonNull(methodName, "methodName may not be null");
             this.lineNo = lineNo;
             this.colNo = colNo;
@@ -458,33 +406,13 @@ public class OverloadMethodsDeclarationOrderCheck extends AbstractCheck {
             }
 
             final OverloadDescriptor other = (OverloadDescriptor) o;
-            return Objects.equals(overloadGroup, other.overloadGroup)
+            return Objects.equals(pattern, other.pattern)
                 && Objects.equals(methodName, other.methodName);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(overloadGroup.hashCode(), methodName.hashCode());
-        }
-    }
-
-    /**
-     * Functions like a {@link Set} except that it keeps the last equal element inserted
-     * in contrition to a {@link Set} which keeps the first.
-     * @param <T> Type of value to be stored
-     */
-    private static final class LastInStore<T> {
-        /**
-         * A map who's key and value are of the same type.
-         */
-        private final Map<T, T> map = new HashMap<>();
-
-        /**
-         * @param value The to be stores.
-         * @return Previous equals value equals if exits, or <code>null</code>.
-         */
-        public T set(T value) {
-            return map.put(value, value);
+            return Objects.hash(pattern, methodName);
         }
     }
 }

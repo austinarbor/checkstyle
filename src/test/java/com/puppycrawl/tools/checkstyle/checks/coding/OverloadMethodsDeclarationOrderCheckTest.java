@@ -19,18 +19,12 @@
 
 package com.puppycrawl.tools.checkstyle.checks.coding;
 
-import static com.google.common.truth.Truth.assertWithMessage;
-import static com.puppycrawl.tools.checkstyle.checks.coding.OverloadMethodsDeclarationOrderCheck.DEFAULT_OVERLOAD_GROUP;
-import static com.puppycrawl.tools.checkstyle.checks.coding.OverloadMethodsDeclarationOrderCheck.MSG_KEY;
-
-import org.junit.jupiter.api.Assertions;
+import com.puppycrawl.tools.checkstyle.AbstractModuleTestSupport;
+import com.puppycrawl.tools.checkstyle.DefaultConfiguration;
 import org.junit.jupiter.api.Test;
 
-import com.puppycrawl.tools.checkstyle.AbstractModuleTestSupport;
-
-import com.puppycrawl.tools.checkstyle.DefaultConfiguration;
-import com.puppycrawl.tools.checkstyle.checks.coding.OverloadMethodsDeclarationOrderCheck.OverloadDescriptor;
-import com.puppycrawl.tools.checkstyle.checks.coding.OverloadMethodsDeclarationOrderCheck.RegexOverloadGroup;
+import static com.google.common.truth.Truth.assertWithMessage;
+import static com.puppycrawl.tools.checkstyle.checks.coding.OverloadMethodsDeclarationOrderCheck.MSG_KEY;
 
 public class OverloadMethodsDeclarationOrderCheckTest
     extends AbstractModuleTestSupport {
@@ -290,7 +284,7 @@ public class OverloadMethodsDeclarationOrderCheckTest
     public void groupOverloadsByModifierTestGroupingPublicStatic() throws Exception {
         final DefaultConfiguration checkConfig =
             createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
-        checkConfig.addAttribute("modifierGroups", "public static");
+        checkConfig.addProperty("modifierGroups", "public static");
         final String[] expected = {
             "13:5: " + getCheckMessage(MSG_KEY, 11),
             "22:5: " + getCheckMessage(MSG_KEY, 20),
@@ -312,7 +306,7 @@ public class OverloadMethodsDeclarationOrderCheckTest
     public void groupOverloadsByModifierTestGroupingStaticPublic() throws Exception {
         final DefaultConfiguration checkConfig =
                 createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
-        checkConfig.addAttribute("modifierGroups", "static public");
+        checkConfig.addProperty("modifierGroups", "static public");
         final String[] expected = {
             "13:5: " + getCheckMessage(MSG_KEY, 11),
             "22:5: " + getCheckMessage(MSG_KEY, 20),
@@ -333,7 +327,7 @@ public class OverloadMethodsDeclarationOrderCheckTest
     public void groupOverloadsByModifierTestGrouping1Protected2Private3Package() throws Exception {
         final DefaultConfiguration checkConfig =
                 createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
-        checkConfig.addAttribute("modifierGroups", "protected, private, package");
+        checkConfig.addProperty("modifierGroups", "protected, private, package");
         final String[] expected = {
             "13:5: " + getCheckMessage(MSG_KEY, 11),
             "22:5: " + getCheckMessage(MSG_KEY, 20),
@@ -354,7 +348,7 @@ public class OverloadMethodsDeclarationOrderCheckTest
     public void groupOverloadsByModifierTestGrouping1Public2PublicFinal3Static() throws Exception {
         final DefaultConfiguration checkConfig =
                 createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
-        checkConfig.addAttribute("modifierGroups", "public, public final, static");
+        checkConfig.addProperty("modifierGroups", "public, public final, static");
         final String[] expected = {
             "22:5: " + getCheckMessage(MSG_KEY, 18),
             "31:5: " + getCheckMessage(MSG_KEY, 27),
@@ -378,7 +372,7 @@ public class OverloadMethodsDeclarationOrderCheckTest
         final DefaultConfiguration checkConfig =
                 createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
         //^public .*, (protected|package), private, ^static$
-        checkConfig.addAttribute("modifierGroups",
+        checkConfig.addProperty("modifierGroups",
             "^public .*, (protected|package), private, ^static$");
         final String[] expected = {
             "13:5: " + getCheckMessage(MSG_KEY, 11),
@@ -400,10 +394,10 @@ public class OverloadMethodsDeclarationOrderCheckTest
         final DefaultConfiguration checkConfig =
                 createModuleConfig(OverloadMethodsDeclarationOrderCheck.class);
         //^public .*, (protected|package), private, ^static$
-        checkConfig.addAttribute("modifierGroups", "^public .*");
-        checkConfig.addAttribute("modifierGroups", "(protected|package)");
-        checkConfig.addAttribute("modifierGroups", "private");
-        checkConfig.addAttribute("modifierGroups", "^static$");
+        checkConfig.addProperty("modifierGroups", "^public .*");
+        checkConfig.addProperty("modifierGroups", "(protected|package)");
+        checkConfig.addProperty("modifierGroups", "private");
+        checkConfig.addProperty("modifierGroups", "^static$");
         final String[] expected = {
             "13:5: " + getCheckMessage(MSG_KEY, 11),
             "22:5: " + getCheckMessage(MSG_KEY, 20),
@@ -431,125 +425,5 @@ public class OverloadMethodsDeclarationOrderCheckTest
         assertWithMessage("Required tokens should not be null")
             .that(check.getRequiredTokens())
             .isNotNull();
-    }
-
-    @Test
-    public void testGetModifierGroupsEmpty() {
-        final OverloadMethodsDeclarationOrderCheck check =
-            new OverloadMethodsDeclarationOrderCheck();
-        Assertions.assertNotNull(check.getModifierGroups());
-    }
-
-    @Test
-    public void testGetModifierGroupsDefault() {
-        final OverloadMethodsDeclarationOrderCheck check =
-            new OverloadMethodsDeclarationOrderCheck();
-        check.setModifierGroups(".*");
-        Assertions.assertNotNull(check.getModifierGroups());
-    }
-
-    @Test
-    public void testGetModifierGroupsDefaultsCatchAllAndEmptyString() {
-        final OverloadMethodsDeclarationOrderCheck check =
-            new OverloadMethodsDeclarationOrderCheck();
-        check.setModifierGroups(".*");
-        check.setModifierGroups("");
-        Assertions.assertNotNull(check.getModifierGroups());
-    }
-
-    @Test
-    public void testGetModifierGroupsDefaults() {
-        final OverloadMethodsDeclarationOrderCheck check =
-            new OverloadMethodsDeclarationOrderCheck();
-        check.setModifierGroups(".*");
-        check.setModifierGroups(".*");
-        Assertions.assertNotNull(check.getModifierGroups());
-    }
-
-    @Test
-    public void testGetModifierGroupsCustom() {
-        final OverloadMethodsDeclarationOrderCheck check =
-            new OverloadMethodsDeclarationOrderCheck();
-        check.setModifierGroups("^public .*");
-        check.setModifierGroups("(protected|package)");
-        check.setModifierGroups("private");
-        check.setModifierGroups("^static$");
-        check.setModifierGroups(".*");
-        Assertions.assertNotNull(check.getModifierGroups());
-    }
-
-    @Test
-    public void testInnerClassesRegexOverloadGroupEquality() {
-        final RegexOverloadGroup regexGroupPublic = new RegexOverloadGroup("public");
-
-        Assertions.assertEquals(DEFAULT_OVERLOAD_GROUP, DEFAULT_OVERLOAD_GROUP,
-                                "expecting to be equal due to same instance comparison");
-        Assertions.assertEquals(regexGroupPublic, regexGroupPublic,
-                                "expecting to be equal due to same instance comparison");
-    }
-
-    @Test
-    public void testInnerClassesRegexOverloadGroupInEquality() {
-        final RegexOverloadGroup regexGroupPrivate = new RegexOverloadGroup("private");
-        final RegexOverloadGroup regexGroupPublic = new RegexOverloadGroup("public");
-
-        Assertions.assertNotEquals(regexGroupPublic, null,
-                                   "expecting not to be equal due to comparison to null");
-        Assertions.assertNotEquals(regexGroupPrivate, regexGroupPublic,
-                                   "expecting not to be equal due to different regex pattern");
-
-        Assertions.assertNotEquals(DEFAULT_OVERLOAD_GROUP, null,
-                                   "expecting not to be equal due to comparison to null");
-        Assertions.assertNotEquals(DEFAULT_OVERLOAD_GROUP, regexGroupPublic,
-                                   "expecting to be equal due to different class comparison DefaultOverloadGroup lead");
-        Assertions.assertNotEquals(regexGroupPublic, DEFAULT_OVERLOAD_GROUP,
-                                   "expecting not to be equal due to different class comparison RegexOverloadGroup lead");
-    }
-
-    @Test
-    public void testInnerClassesOverloadDescriptorEquality() {
-        final RegexOverloadGroup regexGroupProtected = new RegexOverloadGroup("protected");
-
-        final OverloadDescriptor overloadDescriptorProtectedMethod1 =
-            new OverloadDescriptor(regexGroupProtected, "method", 1, 1,3);
-        final OverloadDescriptor overloadDescriptorProtectedMethod2 =
-            new OverloadDescriptor(regexGroupProtected, "method", 1, 1,3);
-
-        Assertions.assertEquals(overloadDescriptorProtectedMethod1, overloadDescriptorProtectedMethod1,
-                                "expecting to be equal due to same instance comparison");
-        Assertions.assertEquals(overloadDescriptorProtectedMethod2, overloadDescriptorProtectedMethod1,
-                                "expecting to be equal due to logical equivalence");
-    }
-
-    @Test
-    public void testInnerClassesOverloadDescriptorInequality() {
-        final RegexOverloadGroup regexGroupProtected = new RegexOverloadGroup("protected");
-
-        final OverloadDescriptor overloadDescriptorProtectedMethod1 =
-            new OverloadDescriptor(regexGroupProtected, "method", 1, 1,3);
-        final OverloadDescriptor overloadDescriptorProtectedOtherMethod =
-            new OverloadDescriptor(regexGroupProtected, "otherMethod", 1, 1,1);
-        final OverloadDescriptor overloadDescriptorDefaultOtherMethod = new OverloadDescriptor(
-            DEFAULT_OVERLOAD_GROUP, "otherMethod", 1, 1,1);
-
-        Assertions.assertNotEquals(overloadDescriptorProtectedMethod1, overloadDescriptorProtectedOtherMethod,
-                                   "expecting not to be equal due to different method name");
-        Assertions.assertNotEquals(overloadDescriptorProtectedOtherMethod, null,
-                                   "expecting not to be equal due to comparison to null");
-        Assertions.assertNotEquals(overloadDescriptorProtectedMethod1, overloadDescriptorDefaultOtherMethod,
-                                   "expecting not to be equal due to different overload group and method name");
-        Assertions.assertNotEquals(overloadDescriptorDefaultOtherMethod, overloadDescriptorProtectedOtherMethod,
-                                   "expecting not to be equal due to different overload group");
-    }
-
-    @Test
-    public void testInnerClassesOverloadDescriptorDefaultOverLoadGroup() {
-        final RegexOverloadGroup regexGroupStatic = new RegexOverloadGroup("static");
-
-        final OverloadDescriptor overloadDescriptorDefaultOtherMethod = new OverloadDescriptor(
-            DEFAULT_OVERLOAD_GROUP, "otherMethod", 1, 1,1);
-
-        Assertions.assertNotEquals(overloadDescriptorDefaultOtherMethod, regexGroupStatic,
-            "expecting not to be equal due to different overload group and method name");
     }
 }

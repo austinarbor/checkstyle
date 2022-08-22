@@ -19,14 +19,13 @@
 
 package com.puppycrawl.tools.checkstyle;
 
-import static com.google.common.truth.Truth.assertWithMessage;
+import com.puppycrawl.tools.checkstyle.api.CheckstyleException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.junit.jupiter.api.Test;
-
-import com.puppycrawl.tools.checkstyle.api.CheckstyleException;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 public class DefaultConfigurationTest {
 
@@ -62,7 +61,7 @@ public class DefaultConfigurationTest {
     @Test
     public void testDeprecatedAttributeMethods() throws CheckstyleException {
         final DefaultConfiguration config = new DefaultConfiguration("MyConfig");
-        config.addAttribute("attribute", "first");
+        config.addProperty("attribute", "first");
         final String[] actual = config.getAttributeNames();
         final String[] expected = {"attribute"};
         assertWithMessage("Invalid attribute names")
@@ -71,7 +70,7 @@ public class DefaultConfigurationTest {
         assertWithMessage("Invalid property value")
             .that(config.getAttribute("attribute"))
             .isEqualTo("first");
-        config.addAttribute("attribute", "second");
+        config.addProperty("attribute", "second");
         assertWithMessage("Invalid property value")
             .that(config.getAttribute("attribute"))
             .isEqualTo("first,second");
